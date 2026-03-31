@@ -11,12 +11,11 @@ Hiện tại, WinSLAP hoạt động dựa trên hai cơ chế chính:
 2.  **Hybrid Engine**: Kết hợp giữa giao diện React/Vite (Frontend) và Python (Backend logic) để tối ưu hóa hiệu suất xử lý tín hiệu thời gian thực.
 
 ## ⚡ Các tính năng chính
--   **Detection**: Nhận diện va chạm vật lý cực nhanh.
--   **Customizable**: Cho phép điều chỉnh độ nhạy để phù hợp với từng loại vỏ máy (Laptop, Desktop).
--   **Auto-Zip Workflow**: Mã nguồn được tự động đóng gói thành file Zip thông qua GitHub Actions mỗi khi có thay đổi mới.
+-   **PC & Mobile Support**: Hỗ trợ cảm biến âm thanh (PC) và cảm biến gia tốc (Mobile). Nhận diện thiết bị nào để dùng cảm biến phù hợp.
+-   **Customizable**: Cho phép điều chỉnh độ nhạy để phù hợp với từng môi trường.
+-   **Auto-Build Workflow**: Tự động build ra bản `.zip` (source code), `.exe` (Windows) và `.apk` (Android) qua GitHub Actions mỗi khi push code lên!
 
-## 🚧 Những phần còn thiếu & Kế hoạch tương lai
--   **Accelerometer Integration (Cảm biến gia tốc)**: Đây là phần quan trọng nhất hiện còn thiếu. Mục tiêu là sử dụng trực tiếp dữ liệu từ cảm biến gia tốc (nếu máy có hỗ trợ, ví dụ: Surface, Laptop đời mới) để nhận diện va chạm chính xác 100% thay vì chỉ dựa vào âm thanh. Điều này giúp loại bỏ hoàn toàn các trường hợp báo hiệu giả (false positive) do tiếng nhạc hoặc tiếng ồn xung quanh.
+## 🚧 Kế hoạch tương lai
 -   **Calibration Tool**: Công cụ tự động cân chỉnh ngưỡng nhạy dựa trên môi trường thực tế của người dùng.
 
 ## 📦 Cài đặt & Phát triển

@@ -1,0 +1,82 @@
+name: Build Release (Win & Android)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Zip Archive
+        run: git archive --format=zip HEAD -o winslap_source.zip
+      - name: Upload Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: winslap-source-zip
+          path: winslap_source.zip
+          retention-days: 5
+
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Dependencies
+        working-directory: ./slapper
+        run: npm install
+      - name: Build Web
+        working-directory: ./slapper
+        run: npm run build
+      - name: Build Electron App (EXE)
+        working-directory: ./slapper
+        run: npx electron-builder --win nsis -c.extraMetadata.main=main.cjs
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: winSLAP-Setup-exe
+          path: slapper/build-electron-v26/*.exe
+          retention-days: 5
+
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install NPM Packages
+        working-directory: ./slapper
+        run: npm install
+      - name: Build Web
+        working-directory: ./slapper
+        run: npm run build
+      - name: Init Capacitor and Android
+        working-directory: ./slapper
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init winSLAP com.slapwin.mobile --web-dir dist
+          npx cap add android
+      - name: Build APK (Debug)
+        working-directory: ./slapper/android
+        run: ./gradlew assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: winSLAP-android-apk
+          path: slapper/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 5

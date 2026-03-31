@@ -36,41 +36,59 @@ function App() {
       audioCtxRef.current = audioCtx;
       setIsListening(true);
       
-      const { ipcRenderer } = window.require('electron');
-      
-      ipcRenderer.on('engine-stat', (event, stats) => {
-         const { mode, force } = stats;
+      if (isElectron) {
+          const { ipcRenderer } = window.require('electron');
+          
+          ipcRenderer.on('engine-stat', (event, stats) => {
+             const { mode, force } = stats;
 
-         frameCountRef.current++;
-         if (frameCountRef.current % (mode === 'SENSOR' ? 2 : 4) === 0) {
-             setLiveStats({ mode, force });
-         }
+             frameCountRef.current++;
+             if (frameCountRef.current % (mode === 'SENSOR' ? 2 : 4) === 0) {
+                 setLiveStats({ mode, force });
+             }
 
-         let requiredForce = 0;
-         let maxForceCap = 3;
-         // slider 0.0 (rất nhạy) -> slider 1.0 (kém nhạy)
-         // Map UI sensitivity values to real force numbers for the appropriate mode
-         if (mode === 'SENSOR') {
-             requiredForce = 0.5 + (configRef.current.sensitivity * 1.5);
-             maxForceCap = requiredForce * 3;
-         } else {
-             requiredForce = 5.0 + (configRef.current.sensitivity * 35.0);
-             maxForceCap = requiredForce * 4;
-         }
+             let requiredForce = 0;
+             let maxForceCap = 3;
+             if (mode === 'SENSOR') {
+                 requiredForce = 0.5 + (configRef.current.sensitivity * 1.5);
+                 maxForceCap = requiredForce * 3;
+             } else {
+                 requiredForce = 5.0 + (configRef.current.sensitivity * 35.0);
+                 maxForceCap = requiredForce * 4;
+             }
 
-         const now = Date.now() / 1000;
-         
-         if (
-             force > requiredForce && 
-             (now - lastSlapRef.current) > configRef.current.cooldown
-         ) {
-             lastSlapRef.current = now;
-             
-             // Khuếch đại âm lượng phát ra khi đánh mạnh
-             let forceVol = Math.min(1.0, Math.max(0.2, ((force - requiredForce) / maxForceCap) + 0.2)); 
-             playSound(configRef.current.selectedSound, forceVol);
-         }
-      });
+             triggerSlapCheck(force, requiredForce, maxForceCap);
+          });
+      } else {
+          // Mobile Mode (Browser / Android Capacitor)
+          if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+              try {
+                  const permissionState = await DeviceMotionEvent.requestPermission();
+                  if (permissionState !== 'granted') {
+                      alert("Vui lòng cấp quyền cảm biến gia tốc để sử dụng trên điện thoại.");
+                  }
+              } catch (e) {
+                  console.error("Lỗi xin quyền gia tốc:", e);
+              }
+          }
+
+          window.addEventListener('devicemotion', (event) => {
+              if (!event.acceleration) return;
+              const { x, y, z } = event.acceleration;
+              // Tính vector gia tốc tổng hợp (bỏ qua trọng lực)
+              const force = Math.sqrt((x || 0)**2 + (y || 0)**2 + (z || 0)**2);
+              
+              frameCountRef.current++;
+              if (frameCountRef.current % 4 === 0) {
+                  setLiveStats({ mode: 'ACCEL', force });
+              }
+              
+              const requiredForce = 5.0 + (configRef.current.sensitivity * 25.0); // Ngưỡng nhạy cho điện thoại
+              const maxForceCap = requiredForce * 3;
+              
+              triggerSlapCheck(force, requiredForce, maxForceCap);
+          });
+      }
       
       loadDefaultSound('scream1', 'https://www.myinstants.com/media/sounds/screaming-goat.mp3');
       loadDefaultSound('scream2', 'https://www.myinstants.com/media/sounds/wilhelm-scream.mp3');
@@ -81,6 +99,19 @@ function App() {
       console.error("lỗi audio:", err);
     }
   };
+
+  const triggerSlapCheck = (force, requiredForce, maxForceCap) => {
+      const now = Date.now() / 1000;
+      if (
+          force > requiredForce && 
+          (now - lastSlapRef.current) > configRef.current.cooldown
+      ) {
+          lastSlapRef.current = now;
+          let forceVol = Math.min(1.0, Math.max(0.2, ((force - requiredForce) / maxForceCap) + 0.2)); 
+          playSound(configRef.current.selectedSound, forceVol);
+      }
+  };
+
 
   const loadDefaultSound = async (id, url) => {
     try {
@@ -178,10 +209,10 @@ function App() {
                   
                   <p className="mb-10">
                     chào bạn, đây là ứng dụng <span className="font-bold border-b-2 border-black inline-block leading-tight">winSLAP</span>. 
-                    chiếc máy tính của bạn sẽ biến thành một sinh vật biết phàn nàn khi bị đánh. 
+                    chiết thiết bị của bạn sẽ biến thành một sinh vật biết phàn nàn khi bị đánh. 
                   </p>
                   <p className="mb-10">
-                    bây giờ winSLAP dã được tích hợp cơ chế Hybrid chống nhiễu tuyệt đối. Không lo kích hoạt nhầm khi mở nhạc hay ngồi ở nơi ồn ào. Tuỳ vào phần cứng, nó sẽ tự chọn chạy qua thuật toán Sensor API hoặc Thuật toán Volume Peak qua micro.
+                    bây giờ winSLAP dã được tích hợp cơ chế Hybrid chống nhiễu tuyệt đối. Trên PC sẽ nhận diện qua Sensor/Microphone chống nhiễu, còn trên điện thoại sẽ nhận diện trực tiếp qua Cảm biến gia tốc (Accelerometer) chuẩn xác 100%.
                   </p>
                   <p className="mb-10">
                     để bắt đầu, vui lòng kích hoạt hệ thống ở góc dưới. 
