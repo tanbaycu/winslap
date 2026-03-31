@@ -18,17 +18,12 @@ Hiện tại, WinSLAP hoạt động dựa trên hai cơ chế chính:
 ## 🚧 Kế hoạch tương lai
 -   **Calibration Tool**: Công cụ tự động cân chỉnh ngưỡng nhạy dựa trên môi trường thực tế của người dùng.
 
-## 📦 Cài đặt & Phát triển
-1.  Clone project: `git clone https://github.com/tanbaycu/winslap.git`
-2.  Cài đặt dependencies:
-    ```bash
-    cd slapper
-    npm install
-    ```
-3.  Chạy ứng dụng (Dev mode):
-    ```bash
-    npm run dev
-    ```
+## 📦 Cài đặt & Sử dụng
+Bạn không cần phải cài đặt phức tạp hay biết code web!
+1.  **Dành cho PC (Windows):** Truy cập vào mục **[Actions](https://github.com/tanbaycu/winslap/actions)** hoặc **Releases** của GitHub, tìm phiên bản mới nhất và tải xuống tệp `winSLAP-Setup.exe`. Cài đặt và mở lên như phần mềm bình thường.
+2.  **Dành cho Điện thoại (Android):** Ứng dụng gốc (Native) Android được phát triển tối ưu riêng với cảm biến gia tốc để ghi nhận lực chuẩn xác ngay trên phần cứng của smartphone. Tải tệp `.apk` được build sẵn tại mục **Actions** và cài đặt trực tiếp vào điện thoại.
+
+*(Quá trình build tự động qua Actions có thể mất vài phút cho mỗi phiên bản mã nguồn cập nhật).*
 
 ---
 *Dự án được phát triển với tình yêu (và một chút bạo lực với phần cứng).*
