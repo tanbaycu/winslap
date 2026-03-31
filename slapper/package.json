@@ -1,0 +1,50 @@
+{
+  "name": "slapwin-react",
+  "private": true,
+  "version": "1.0.26",
+  "main": "main.cjs",
+  "author": "Antigravity",
+  "description": "SlapWin - The PC Screamer",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.slapwin.app",
+    "productName": "SlapWin",
+    "directories": {
+      "output": "../build-electron-v26"
+    },
+    "extraResources": [
+      "engine.py"
+    ],
+    "files": [
+      "dist/**/*",
+      "main.cjs",
+      "public/**/*"
+    ],
+    "win": {
+      "target": "dir"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "^0.292.0",
+    "meyda": "^5.6.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-packager": "^17.1.2",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "vite": "^5.0.0"
+  }
+}

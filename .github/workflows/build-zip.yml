@@ -1,0 +1,26 @@
+name: Build Project Zip
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Zip Archive
+        run: |
+          # Dùng zip để gom các file quan trọng, loại bỏ các file rác theo .gitignore (tương đối)
+          # Hoặc dùng git archive để gom toàn bộ project đã commit (cách này sạch nhất)
+          git archive --format=zip HEAD -o winslap_project.zip
+
+      - name: Upload Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winslap-source-zip
+          path: winslap_project.zip
+          retention-days: 5
