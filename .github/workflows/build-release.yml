@@ -41,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: winSLAP-Setup-exe
-          path: slapper/build-electron-v26/*.exe
+          path: build-electron-v26/*.exe
           retention-days: 5
 
   build-apk:
