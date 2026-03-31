@@ -69,7 +69,6 @@ jobs:
         working-directory: ./slapper
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init winSLAP com.slapwin.mobile --web-dir dist
           npx cap add android
       - name: Build APK (Debug)
         working-directory: ./slapper/android
