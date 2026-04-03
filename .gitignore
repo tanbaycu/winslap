@@ -1,38 +1,108 @@
-# Node.js
+# ──────────────────────────────────────────────
+#  winSLAP — .gitignore
+#  Flexible, layered exclusion rules.
+#  Track: source code, config, workflows, assets
+#  Exclude: build artifacts, caches, local envs
+# ──────────────────────────────────────────────
+
+# ── Node.js ──────────────────────────────────
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.npm
+pnpm-debug.log*
+.pnpm-store/
+.npm/
+.yarn/
 
-# Python
+# ── Python ───────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
 .venv/
 venv/
 ENV/
-build/
-dist/
-*.spec
+env/
+.Python
 
-# Electron/Build folders
-build/
-build-*/
+# ── Build & Distribution ─────────────────────
 dist/
 dist-*/
+dist-electron/
+build/
+build-*/
+out/
+output/
 win-unpacked/
+linux-unpacked/
+mac/
+
+# ── Electron Packager Artifacts ───────────────
 *.exe
-*.zip
 *.msi
+*.dmg
+*.deb
+*.rpm
+*.zip
+*.tar.gz
+*.AppImage
 
-# OS specific
-.DS_Store
-Thumbs.db
+# ── Android / Capacitor ───────────────────────
+slapper/android/
+*.apk
+*.aab
+*.keystore
+*.jks
 
-# Misc
+# ── PyInstaller ───────────────────────────────
+*.spec
+
+# ── Environment & Secrets ─────────────────────
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ── IDE & Editor ──────────────────────────────
 .idea/
 .vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+
+# ── OS Artifacts ──────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Logs & Temp ───────────────────────────────
 *.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.cache
+.cache/
+
+# ── Testing & Coverage ────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+
+# ── Tooling ───────────────────────────────────
 .gemini/
+.parcel-cache/
+.turbo/
+*.tsbuildinfo

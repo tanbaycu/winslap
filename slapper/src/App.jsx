@@ -18,9 +18,10 @@ function App() {
 
   const audioCtxRef = useRef(null);
   const lastSlapRef = useRef(0);
-  const soundBuffersRef = useRef({}); 
+  const soundBuffersRef = useRef({});
   const frameCountRef = useRef(0);
   
+  // Sync config ref to avoid stale closures inside event listeners
   const configRef = useRef({ sensitivity, cooldown, selectedSound });
   
   useEffect(() => {
@@ -39,6 +40,7 @@ function App() {
       if (isElectron) {
           const { ipcRenderer } = window.require('electron');
           
+          // Listen to IPC stats from the Python engine
           ipcRenderer.on('engine-stat', (event, stats) => {
              const { mode, force } = stats;
 
@@ -60,22 +62,22 @@ function App() {
              triggerSlapCheck(force, requiredForce, maxForceCap);
           });
       } else {
-          // Mobile Mode (Browser / Android Capacitor)
+          // Mobile mode: use DeviceMotion API (Capacitor / Android browser)
           if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
               try {
                   const permissionState = await DeviceMotionEvent.requestPermission();
                   if (permissionState !== 'granted') {
-                      alert("Vui lòng cấp quyền cảm biến gia tốc để sử dụng trên điện thoại.");
+                      alert("Please grant accelerometer permission to use WinSLAP on mobile.");
                   }
               } catch (e) {
-                  console.error("Lỗi xin quyền gia tốc:", e);
+                  console.error("Accelerometer permission error:", e);
               }
           }
 
           window.addEventListener('devicemotion', (event) => {
               if (!event.acceleration) return;
               const { x, y, z } = event.acceleration;
-              // Tính vector gia tốc tổng hợp (bỏ qua trọng lực)
+              // Compute resultant acceleration vector (gravity excluded)
               const force = Math.sqrt((x || 0)**2 + (y || 0)**2 + (z || 0)**2);
               
               frameCountRef.current++;
@@ -83,7 +85,8 @@ function App() {
                   setLiveStats({ mode: 'ACCEL', force });
               }
               
-              const requiredForce = 5.0 + (configRef.current.sensitivity * 25.0); // Ngưỡng nhạy cho điện thoại
+              // Mobile sensitivity threshold mapping
+              const requiredForce = 5.0 + (configRef.current.sensitivity * 25.0);
               const maxForceCap = requiredForce * 3;
               
               triggerSlapCheck(force, requiredForce, maxForceCap);
@@ -96,10 +99,11 @@ function App() {
       loadDefaultSound('bruh', 'https://www.myinstants.com/media/sounds/movie_1.mp3');
       
     } catch (err) {
-      console.error("lỗi audio:", err);
+      console.error("Audio init error:", err);
     }
   };
 
+  // Core slap detection gate: force threshold + cooldown guard
   const triggerSlapCheck = (force, requiredForce, maxForceCap) => {
       const now = Date.now() / 1000;
       if (
@@ -107,11 +111,11 @@ function App() {
           (now - lastSlapRef.current) > configRef.current.cooldown
       ) {
           lastSlapRef.current = now;
-          let forceVol = Math.min(1.0, Math.max(0.2, ((force - requiredForce) / maxForceCap) + 0.2)); 
+          // Volume scales linearly with excess force
+          let forceVol = Math.min(1.0, Math.max(0.2, ((force - requiredForce) / maxForceCap) + 0.2));
           playSound(configRef.current.selectedSound, forceVol);
       }
   };
-
 
   const loadDefaultSound = async (id, url) => {
     try {
@@ -144,7 +148,7 @@ function App() {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    let defaultName = file.name.split('.')[0] || 'âm thanh tải lên';
+    let defaultName = file.name.split('.')[0] || 'custom sound';
     if(defaultName.length > 20) defaultName = defaultName.substring(0, 20) + '...';
     setPendingUpload({ file, name: defaultName });
   };
@@ -166,30 +170,32 @@ function App() {
         const arrayBuffer = await file.arrayBuffer();
         soundBuffersRef.current[id] = await audioCtxRef.current.decodeAudioData(arrayBuffer);
     } catch (e) {
-        alert("lỗi xử lý tệp âm thanh.");
+        alert("Failed to decode audio file. Please use a valid MP3 or WAV.");
     }
   };
 
+  // Human-readable sensitivity label
   const getSensitivityText = (val) => {
-    if(val <= 0.1) return "nhạy dữ luôn (chạm nhẹ cũng dội)";
-    if(val <= 0.35) return "nhạy mỏng manh (gõ lốc cốc)";
-    if(val <= 0.65) return "bình thường (tát giật mình)";
-    if(val <= 0.85) return "hơi trâu bò (đập móp vỏ máy)";
-    return "cứng như đá (tát gãy bàn phím)";
+    if(val <= 0.1) return "hair trigger — whisper touch";
+    if(val <= 0.35) return "light — gentle knock";
+    if(val <= 0.65) return "balanced — firm slap";
+    if(val <= 0.85) return "heavy — forceful impact";
+    return "maximum — nearly indestructible";
   };
 
   return (
     <div className="w-full min-h-screen flex flex-col p-8 md:p-12 lg:p-16 selection:bg-[#EAEAEA] select-none lowercase font-sans text-black bg-[#FFFFFF]">
       
+      {/* ── Top status bar ── */}
       <div className="flex justify-between items-start font-mono text-[10px] md:text-xs text-[#999] tracking-widest mb-10 shrink-0">
          <div className="flex flex-col gap-1.5 leading-tight">
-            <span>trạng thái hệ thống</span>
+            <span>system status</span>
             <span className="text-[#1A1A1A] font-medium">
                {isListening ? (
                   <>
-                     đang nghe {">"} <span className="font-bold text-black border border-black px-1" title="Lực chấn động đo được">lực: {liveStats.force ? liveStats.force.toFixed(2) : "0.00"}</span> | <span className={`font-bold border border-black px-1 ${liveStats.mode === 'SENSOR' ? 'text-blue-600 border-blue-600' : 'text-green-600 border-green-600'}`}>{liveStats.mode === 'SENSOR' ? 'CHIP CẢM BIẾN' : 'MICROPHONE'}</span>
+                     listening {">"} <span className="font-bold text-black border border-black px-1" title="Measured impact force">force: {liveStats.force ? liveStats.force.toFixed(2) : "0.00"}</span> | <span className={`font-bold border border-black px-1 ${liveStats.mode === 'SENSOR' ? 'text-blue-600 border-blue-600' : 'text-green-600 border-green-600'}`}>{liveStats.mode === 'SENSOR' ? 'SENSOR CHIP' : 'MICROPHONE'}</span>
                   </>
-               ) : 'đang ngủ (bấm đánh thức hệ thống)'}
+               ) : 'idle — activate the engine below'}
             </span>
          </div>
          <div className="flex flex-col gap-1.5 leading-tight text-right font-bold text-[#1A1A1A]">
@@ -197,10 +203,12 @@ function App() {
          </div>
       </div>
 
+      {/* ── Main content area ── */}
       <div className="flex-1 flex flex-col justify-start max-w-4xl mx-auto w-full px-4 pt-10">
          
          <div className="text-[19px] md:text-[23px] lg:text-[26px] leading-[1.65] font-normal text-[#1A1A1A] tracking-[-0.01em]">
 
+            {/* Guide tab */}
             {activeTab === 'guide' && (
                <div className="animate-fade-in">
                   <div className="mb-10 w-24 h-24 border-2 border-dashed border-[#1A1A1A]/20 flex items-center justify-center bg-gray-50/50">
@@ -208,26 +216,27 @@ function App() {
                   </div>
                   
                   <p className="mb-10">
-                    chào bạn, đây là ứng dụng <span className="font-bold border-b-2 border-black inline-block leading-tight">winSLAP</span>. 
-                    chiết thiết bị của bạn sẽ biến thành một sinh vật biết phàn nàn khi bị đánh. 
+                    hello — this is <span className="font-bold border-b-2 border-black inline-block leading-tight">winSLAP</span>. 
+                    your machine is about to become a creature that screams when struck.
                   </p>
                   <p className="mb-10">
-                    bây giờ winSLAP dã được tích hợp cơ chế Hybrid chống nhiễu tuyệt đối. Trên PC sẽ nhận diện qua Sensor/Microphone chống nhiễu, còn trên điện thoại sẽ nhận diện trực tiếp qua Cảm biến gia tốc (Accelerometer) chuẩn xác 100%.
+                    the hybrid engine is active. on desktop it reads force via the Windows Sensor API or microphone peak analysis; on mobile it captures raw accelerometer vectors for 100% accuracy.
                   </p>
                   <p className="mb-10">
-                    để bắt đầu, vui lòng kích hoạt hệ thống ở góc dưới. 
-                    sau đó, bạn có thể chỉnh <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('settings')}>cảm biến nhận diện</span> (độ nhạy lực), 
-                    chọn <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('sounds')}>âm thanh</span> có sẵn, 
-                    hoặc tự <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('upload')}>tải lên mp3</span> của bạn.
+                    to begin, activate the engine at the bottom of the page. 
+                    then tune the <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('settings')}>sensitivity</span>, 
+                    select a <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('sounds')}>sound profile</span>, 
+                    or <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('upload')}>upload your own mp3</span>.
                   </p>
                </div>
             )}
 
+            {/* Settings tab */}
             {activeTab === 'settings' && (
                <div className="animate-fade-in">
                   <p className="mb-8 items-center leading-loose">
-                    <strong className="text-black">1. thanh đo lực đập: </strong> kéo qua trái thì chạm nhẹ cũng phản hồi. kéo sang phải thì đập lún màn hình mới kêu. <br/>
-                    độ nhạy lực: <span className="font-mono text-[16px] md:text-[20px] bg-black text-white px-2 py-1 mx-1 leading-none">{sensitivity.toFixed(2)}</span> <span className="text-gray-500 text-[16px]">({getSensitivityText(sensitivity)})</span>
+                    <strong className="text-black">1. impact threshold: </strong> slide left for hair-trigger response. slide right to require a harder impact. <br/>
+                    sensitivity: <span className="font-mono text-[16px] md:text-[20px] bg-black text-white px-2 py-1 mx-1 leading-none">{sensitivity.toFixed(2)}</span> <span className="text-gray-500 text-[16px]">({getSensitivityText(sensitivity)})</span>
                   </p>
                   <div className="mb-12 max-w-sm ml-1">
                       <input 
@@ -237,16 +246,16 @@ function App() {
                   </div>
 
                   <p className="mb-8 items-center leading-loose opacity-40">
-                    <strong className="text-black line-through">2. bộ khóa tạp âm thủ công: </strong> <br/>
-                    (bộ chống nhiễu nay đã được nâng cấp tự động nhận diện Volume Peak / Vector gia tốc nên tính năng này đã tháo bỏ, bạn cứ mở nhạc xập xình mà tát vào máy vẫn nhận diện chuẩn 100%).
+                    <strong className="text-black line-through">2. manual noise gate: </strong> <br/>
+                    (deprecated — the hybrid engine now performs automatic peak detection and acceleration vector analysis. ambient audio has zero effect on slap recognition.)
                   </p>
                   <div className="mb-12 max-w-sm ml-1 opacity-40 pointer-events-none">
                       <input type="range" min="0" max="255" step="1" value="150" readOnly />
                   </div>
 
                   <p className="mb-8 items-center leading-loose">
-                    <strong className="text-black">3. thời gian đợi: </strong> khoảng ngưng nghỉ giữa hai lần phản hồi để máy không phát ra liên tục. <br/>
-                    hiện tại là: <span className="font-mono text-[16px] md:text-[20px] bg-black text-white px-2 py-1 mx-1">{cooldown.toFixed(1)}s</span>
+                    <strong className="text-black">3. response cooldown: </strong> minimum interval between consecutive triggers to prevent rapid-fire playback. <br/>
+                    current: <span className="font-mono text-[16px] md:text-[20px] bg-black text-white px-2 py-1 mx-1">{cooldown.toFixed(1)}s</span>
                   </p>
                   <div className="mb-10 max-w-sm ml-1">
                       <input 
@@ -255,26 +264,27 @@ function App() {
                       />
                   </div>
                   <p>
-                    thiết lập xong thì quay về <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>trang chủ</span>.
+                    done — go back to <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>home</span>.
                   </p>
                </div>
             )}
 
+            {/* Sound selection tab */}
             {activeTab === 'sounds' && (
                <div className="animate-fade-in">
                   <p className="mb-10">
-                     bạn muốn âm thanh phát ra là gì?
+                     choose your reaction sound.
                   </p>
                   <p className="mb-10">
-                     âm thanh đang dùng: <span className="font-mono text-[16px] md:text-[20px] bg-black text-white px-2 py-1 ml-1">{selectedSound}</span>
+                     active: <span className="font-mono text-[16px] md:text-[20px] bg-black text-white px-2 py-1 ml-1">{selectedSound}</span>
                   </p>
                   
                   <div className="flex flex-wrap gap-x-8 gap-y-4 mb-10 text-[18px] md:text-[22px]">
                      {[
-                       { id: 'scream1', label: 'tiếng dê la' },
-                       { id: 'scream2', label: 'tiếng người hét' },
-                       { id: 'bonk', label: 'vụng trộm gõ mỏ' },
-                       { id: 'bruh', label: 'bruh chán nản' }
+                       { id: 'scream1', label: 'goat scream' },
+                       { id: 'scream2', label: 'wilhelm scream' },
+                       { id: 'bonk', label: 'bonk' },
+                       { id: 'bruh', label: 'bruh' }
                      ].map(s => (
                        <span key={s.id} onClick={() => setSelectedSound(s.id)} className={`ferro-link ${selectedSound === s.id ? 'active' : ''}`}>{s.label}</span>
                      ))}
@@ -284,27 +294,28 @@ function App() {
                   </div>
 
                   <p>
-                    chọn xong thì vòng lại <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>trang chủ</span>.
+                    done — back to <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>home</span>.
                   </p>
                </div>
             )}
 
+            {/* Upload tab */}
             {activeTab === 'upload' && (
                <div className="animate-fade-in">
                   <p className="mb-10">
-                    thêm âm thanh của riêng bạn. hỗ trợ mp3, wav. vui lòng cắt ngắn dưới 5 giây.
+                    upload a custom sound. mp3 and wav supported. keep it under 5 seconds.
                   </p>
                   
                   {!pendingUpload ? (
                      <label className="inline-flex items-center gap-4 cursor-pointer mb-10 group mt-4">
                          <span className="font-mono text-[16px] md:text-[20px] border-2 border-black px-4 py-3 group-hover:bg-black group-hover:text-white transition-colors">
-                             tải lên tệp âm thanh
+                             upload audio file
                          </span>
                          <input type="file" accept="audio/mp3, audio/wav, audio/mpeg" className="hidden" onChange={handleFileSelect} />
                      </label>
                   ) : (
                      <div className="flex flex-col gap-4 mb-10 mt-4 max-w-md">
-                         <span className="text-[14px] text-gray-500 font-mono tracking-widest uppercase mb-1">bạn muốn đặt tên gì cho nó?</span>
+                         <span className="text-[14px] text-gray-500 font-mono tracking-widest uppercase mb-1">name this sound</span>
                          <input 
                             type="text" 
                             className="w-full border-b-2 border-gray-300 focus:border-black outline-none py-2 text-[20px] transition-colors"
@@ -313,34 +324,35 @@ function App() {
                          />
                          <div className="flex gap-4 mt-4">
                             <button onClick={handleConfirmUpload} className="bg-black text-white font-mono text-[14px] px-6 py-2">
-                               lưu & sử dụng
+                               save & use
                             </button>
                             <button onClick={() => setPendingUpload(null)} className="border border-black text-black font-mono text-[14px] px-6 py-2">
-                               hủy
+                               cancel
                             </button>
                          </div>
                      </div>
                   )}
 
                   <p>
-                    trở về <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>trang chủ</span>.
+                    back to <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>home</span>.
                   </p>
                </div>
             )}
 
+            {/* About / Author tab */}
             {activeTab === 'author' && (
                <div className="animate-fade-in text-[17px] md:text-[20px]">
                   <p className="mb-8">
-                    mã nguồn mở nguyên bản trên github cộng đồng. báo cáo lỗi hoặc yêu cầu tính năng: 
+                    open source on github. report bugs or request features: 
                   </p>
                   <p className="mb-12 flex flex-wrap gap-x-6 gap-y-2">
                     <a href="https://github.com/tanbaycu/win-slap" target="_blank" className="ferro-link text-black font-semibold">star on github</a>
-                    <a href="https://github.com/tanbaycu/win-slap/issues" target="_blank" className="ferro-link text-black font-semibold">mở issues</a> 
-                    <a href="https://github.com/tanbaycu/win-slap/pulls" target="_blank" className="ferro-link text-black font-semibold">pull requests</a>
+                    <a href="https://github.com/tanbaycu/win-slap/issues" target="_blank" className="ferro-link text-black font-semibold">open issue</a> 
+                    <a href="https://github.com/tanbaycu/win-slap/pulls" target="_blank" className="ferro-link text-black font-semibold">pull request</a>
                   </p>
 
                   <p className="mb-8">
-                    lên ý tưởng ngẫu hứng và phác thảo bởi <strong className="font-semibold text-black">tanbaycu</strong>.
+                    conceived and built by <strong className="font-semibold text-black">tanbaycu</strong>.
                   </p>
                   <p className="mb-10 flex flex-wrap gap-x-6 gap-y-2">
                      <a href="#" className="ferro-link text-black font-semibold">portfolio</a>
@@ -348,7 +360,7 @@ function App() {
                      <a href="https://instagram.com/tanbaycu" target="_blank" className="ferro-link text-black font-semibold">instagram</a>
                   </p>
                   <p>
-                    trở về <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>trang chủ</span>.
+                    back to <span className="ferro-link text-black font-semibold" onClick={() => setActiveTab('guide')}>home</span>.
                   </p>
                </div>
             )}
@@ -356,15 +368,16 @@ function App() {
          </div>
       </div>
 
+      {/* ── Bottom navigation bar ── */}
       <div className="flex justify-between items-end font-mono text-[10px] md:text-xs text-[#999] tracking-widest border-t border-[#EAEAEA] pt-6 shrink-0 z-10 w-full mt-4">
          <div>
-            &mdash; kết thúc tài liệu. tác giả tanbaycu.
+            &mdash; end of document. by tanbaycu.
          </div>
          <div className="text-right">
             {!isListening ? (
-               <>chưa mở cảm biến. <span className="ferro-link text-black font-semibold cursor-pointer ml-1" onClick={initAudio}>[ đánh thức hệ thống ]</span></>
+               <>engine inactive. <span className="ferro-link text-black font-semibold cursor-pointer ml-1" onClick={initAudio}>[ activate ]</span></>
             ) : (
-               <>cảm biến đang phân tích liên tục vòng lặp.</>
+               <>engine running — impact loop active.</>
             )}
          </div>
       </div>
